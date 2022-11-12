@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width,height=device-height" />
+  <title>Editor</title>
+  <link rel="stylesheet" href="css/theme/theme.css">
+  <link rel="stylesheet" href="css/ace.css">
+  <style type="text/css" media="screen">
+
+    @font-face {
+      font-family: 'font';
+      src: url(fancade.woff) format('woff');
+    }
+
+    * {
+      image-rendering: pixelated;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+      justify-self: center;
+      background: #4E3731;
+      overflow: hidden;
+    }
+
+    *:not(#editor *) {
+      /*transition: all .125s ease-in-out;*/
+      user-select: none;
+      font-family: "font";
+      color: #dcbd;
+    }
+
+    .ace-pastel-on-dark .ace_gutter {
+      background: #382D2555;
+    }
+
+    .ace-pastel-on-dark {
+      background-color: #4E373155;
+    }
+
+    .topnav {
+      position: absolute;
+      top: 0;
+      background: #3B2C25;
+      color: #dcbd;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+    }
+
+    #res {
+      color: #fff;
+      background: #4F3D35;
+      border: 0;
+    }
+
+    #res:focus {
+      outline: 0;
+    }
+
+    .btn {
+      background: #4F3D35;
+      border: 0;
+      transition: all .125s ease-in-out;
+    }
+
+    .btn:active {
+      background: #6B4E42;
+      transform: scale(125%);
+    }
+
+    #type {
+      background-image: url(type.png);
+      background-size: 300% 100%;
+      background-position: 100% 0;
+    }
+
+    #prevtype {
+      background-image: url(view.png);
+      background-size: 200% 100%;
+      background-position: 100% 0;
+    }
+
+    #editor {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 2;
+      font-family: monospace;
+    }
+
+    #canvas {
+      display: flex;
+      align-self: center;
+      justify-self: center;
+      background: #000;
+      touch-action: none;
+      position: absolute;
+      z-index: 1;
+    }
+
+    #options {
+      background: #6B514B;
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      z-index: 5;
+    }
+
+    #options_page {
+      background: #3B332C;
+      width: 50%;
+      height: 50%;
+      z-index: 4;
+      transition: all .25s ease;
+      transform: scale(0);
+    }
+
+    #options_page center button {
+      background: #59453D;
+      border: 0;
+      margin-top: 5.5%;
+      transform: scale(.85);
+      transition: all .25s ease;
+    }
+
+    #options_page center button:active {
+      transform: scale(1.125);
+    }
+
+    @media (orientation: portrait) {
+      .topnav {
+        width: 100vw;
+        height: 15vw;
+      }
+
+      .topnav * {
+        margin: 1.25vw;
+      }
+
+      .icon {
+        width: 12.5vw;
+      }
+
+      #res {
+        height: 7.5vw;
+        border-radius: 1vw;
+      }
+
+      .btn {
+        width: 10vw;
+        height: 10vw;
+        border-radius: 1.5vw;
+      }
+
+      #type {
+        position: fixed;
+        right: 15vw;
+      }
+
+      #prevtype {
+        position: fixed;
+        right: 2.5vw;
+      }
+
+      #canvas {
+        width: 100vw;
+        height: 100vw;
+        top: calc(50% - 45vw);
+      }
+
+      #editor {
+        top: 15vw;
+      }
+
+      #options {
+        width: 12.5vw;
+        height: 12.5vw;
+        margin: 10vw;
+      }
+
+      #options_page {
+        border-radius: 1.5vh;
+      }
+
+      #options_page center button {
+        border-radius: 1.5vw;
+        width: 100%;
+        height: 10vh;
+      }
+    }
+
+    @media (orientation: landscape) {
+      .topnav {
+        width: 100vw;
+        height: 15vh;
+      }
+
+      .topnav * {
+        margin: 1.25vh;
+      }
+
+      .icon {
+        width: 12.5vh;
+      }
+
+      #res {
+        height: 7.5vh;
+        border-radius: 1vh;
+      }
+
+      .btn {
+        width: 10vh;
+        height: 10vh;
+        border-radius: 1.5vh;
+      }
+
+      #type {
+        position: fixed;
+        right: 15vh;
+      }
+
+      #prevtype {
+        position: fixed;
+        right: 2.5vh;
+      }
+
+      #canvas {
+        top: 15vh;
+        height: calc(var(--vh) * 80);
+        width: calc(var(--vh) * 80);
+      }
+
+      #editor {
+        top: 15vh;
+      }
+
+      #options {
+        width: 12.5vh;
+        height: 12.5vh;
+        margin: 10vh;
+      }
+
+      #options_page {
+        border-radius: 1.5vh;
+      }
+
+      #options_page center button {
+        border-radius: 1.5vh;
+        display: inline;
+        margin-top: 3%;
+        width: 45%;
+        height: 20vh;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="topnav">
+    <img class="icon" src="icon.png">
+    <p id="shName">Core</p>
+    <select id="res" onchange="update()">
+      <option value="1">1/32</option>
+      <option value="2">1/16</option>
+      <option value="3" selected>1/8</option>
+      <option value="4">1/4</option>
+      <option value="5">1/2</option>
+      <option value="6">1</option>
+    </select>
+    <button class="btn" id="type"></button>
+    <button class="btn" id="prevtype"></button>
+  </div>
+
+  <button id="options" class="btn">$</button>
+  <div id="options_page">
+    <center>
+      <button id="open">open</button>
+      <button id="save">save</button>
+      <button id="export">export</button>
+      <button id="download">download</button>
+    </center>
+  </div>
+
+  <iframe class="iframe" id="canvas" src="viewer.html" frameborder="0" name="iframe"></iframe>
+
+  <pre id="editor" oninput="update()">void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+  vec2 p = fragCoord.xy/iResolution;
+
+  float t = cos(iTime)*.5+.5;
+  vec3 col = vec3(p,t);
+
+  //dithering
+  int i = int(
+    mod(floor(gl_FragCoord.x),4.0)+
+    mod(floor(gl_FragCoord.y),4.0)*4.0
+  );
+  float d = dither[i]/256.0;
+
+  fragColor = vec4(col+d,1.0);
+}</pre>
+
+</body>
+
+<script src="js/file.js"></script>
+<script src="js/stringer.js"></script>
+<script src="src-min-noconflict/ace.js"></script>
+<script src="src-min-noconflict/ext-language_tools.js"></script>
+
+<script>
+  function defineVisibleHeight() {
+    const h = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${h}px`);
+  }
+  defineVisibleHeight();
+  window.onresize = defineVisibleHeight;
+</script>
+
+<script>
+  var editor = ace.edit("editor");
+  editor.setTheme("ace/theme/pastel_on_dark");
+  editor.session.setMode("ace/mode/glsl");
+  editor.setOptions({
+    enableSnippets: true,
+    enableLiveAutocompletion: true,
+    showPrintMargin: false,
+    foldStyle: "markbeginend",
+    tabSize: 2
+  });
+
+  eeditor = document.getElementById("editor");
+  eiframe = document.querySelector("iframe");
+  ename = document.getElementById("shName");
+
+  document.getElementById("open").onclick = function() {
+    location.replace("gallery.html");
+  }
+  document.getElementById("save").onclick = function() {
+    localStorage.setItem(ename.innerHTML,editor.getValue());
+    location.replace(
+      "gallery.html?n="+ename.innerHTML
+    );
+  }
+  document.getElementById("export").onclick = function() {
+    saveText(editor.getValue(),"shader-"+Math.random(1)+".core");
+  }
+  document.getElementById("download").onclick = function() {
+    saveImage(iframe.img,"core"+Math.random(1));
+  }
+
+  const url_string = window.location.href;
+  const url = new URL(url_string);
+  const load = url.searchParams.get("load");
+  const name = url.searchParams.get("name");
+  const itemDel = url.searchParams.get("delete");
+
+  if (load != undefined) {
+    ename.innerHTML = load;
+    editor.setValue(
+      localStorage.getItem(load)
+    );
+  }
+
+  if (name != undefined) {
+    ename.innerHTML = name;
+    /*editor.setValue(
+      localStorage.getItem("Core")
+    );*/
+  }
+
+  if (itemDel != undefined) {
+    localStorage.removeItem(itemDel);
+    location.replace(
+      "gallery.html"
+    );
+  }
+
+  let preview = true;
+
+  let pageScale = 0;
+  options.onclick = function() {
+    pageScale = (pageScale+1)%2;
+    options_page.style.transform = "scale("+pageScale+")";
+  }
+
+  let ptype = 1;
+  prevtype.onclick = function() {
+    preview = !preview;
+    ptype = (ptype + 1) % 2;
+    prevtype.style.backgroundPosition = ptype * 100 + "% 0";
+    update();
+  }
+  let ttype = 2;
+  type.onclick = function() {
+    ttype = (ttype + 1) % 3;
+    type.style.backgroundPosition = ttype * 50 + "% 0";
+    if (ttype == 2) {
+      eeditor.style.display = "block";
+    }
+    if (ttype == 1) {
+      eeditor.style.display = "none";
+      eiframe.style.display = "block";
+    }
+    if (ttype == 0) {
+      eiframe.style.display = "none";
+    }
+  }
+
+  resInput = document.getElementById("res");
+
+  function update() {
+    if (preview == true) {
+      iframe.location.replace(
+        "viewer.html?shader=%20%20" +
+        encodeURIComponent(editor.getValue()) +
+        "&res=" +
+        eval(resInput.options[resInput.selectedIndex].text)
+      );
+    }
+    eiframe.onload = function() {
+      editor.getSession().setAnnotations([{
+        row: iframe.error[2] - 113,
+        column: 0,
+        text: iframe.error[3] + iframe.error[4],
+        type: "error" // also "warning" and "information"
+      }]);
+    }
+  }
+  update();
+</script>
+
+</html>

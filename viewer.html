@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Core</title>
+</head>
+
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  #canvas {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+  }
+</style>
+
+<body>
+<div class="screen">
+  <div class="error" id="canvas" style="color:red;"></div>
+  <canvas class="canvas" id="canvas"></canvas>
+</div>
+</body>
+
+<script src="js/camera.js"></script>
+
+<script id="shaderVs" type="x-shader/x-vertex">#version 300 es
+  void main() {
+    gl_PointSize = 1024.;
+  }
+</script>
+
+<script id="core" type="x-shader/x-fragment">#version 300 es
+
+precision highp float;
+
+float dither[16] = float[16](
+  0.0,8.0,2.0,10.0,
+  12.0,4.0,14.0,6.0,
+  3.0,11.0,1.0,9.0,
+  15.0,7.0,13.0,5.0
+);
+
+vec3 palette[33] = vec3[33](
+  vec3(219, 145, 145),
+  vec3(255, 227, 227),
+  vec3(171, 134, 255),
+  vec3(255, 179, 228),
+  vec3(255, 150, 150),
+  vec3(255, 163, 125),
+  vec3(255, 255, 117),
+  vec3(171, 255, 104),
+  vec3(0, 194, 255),
+  vec3(254, 255, 255),
+  vec3(91, 91, 118),
+  vec3(187, 103, 122),
+  vec3(255, 202, 184),
+  vec3(137, 107, 214),
+  vec3(255, 144, 202),
+  vec3(255, 72, 101),
+  vec3(255, 108, 80),
+  vec3(255, 205, 0),
+  vec3(62, 186, 73),
+  vec3(0, 140, 255),
+  vec3(221, 224, 240),
+  vec3(60, 60, 80),
+  vec3(144, 79, 90),
+  vec3(245, 171, 160),
+  vec3(102, 81, 158),
+  vec3(230, 108, 167),
+  vec3(187, 52, 77),
+  vec3(200, 77, 61),
+  vec3(233, 163, 0),
+  vec3(0, 134, 74),
+  vec3(0, 106, 212),
+  vec3(135, 139, 160),
+  vec3(26, 26, 37)
+);
+
+vec4 rgb2index(in vec4 v) {
+  int idx;
+  float min = 9.0;
+  for(int i=0; i<33; i++) {
+    vec3 col = palette[i]/256.0;
+    float d = (v.x - col.x) * (v.x - col.x) + (v.y - col.y) * (v.y - col.y) + (v.z - col.z) * (v.z - col.z);
+    if (d<min) {
+      min = d;
+      idx = i;
+    }
+  }
+  return vec4(palette[idx]/256.0,1.0);
+}
+
+vec3 hsl2rgb(in vec3 c) {
+  vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);
+  return c.z+c.y*(rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
+}
+
+float random(float n){return fract(sin(n) * 43758.5453123);}
+
+vec2 rotate(vec2 v, float a) {
+  float s = sin(a);
+  float c = cos(a);
+  mat2 m = mat2(c,-s,s,c);
+  return m * v;
+}
+
+mat4 rotation3d(vec3 axis, float angle) {
+  axis = normalize(axis);
+  float s = sin(angle);
+  float c = cos(angle);
+  float oc = 1.0 - c;
+
+  return mat4(
+    oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
+    oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
+    oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
+    0.0,                                0.0,                                0.0,                                1.0
+  );
+}
+
+vec3 rotateX(vec3 p, float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+  return vec3(p.x, c*p.y+s*p.z, -s*p.y+c*p.z);
+}
+
+vec3 rotateY(vec3 p, float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+  return vec3(c*p.x-s*p.z, p.y, s*p.x+c*p.z);
+}
+
+vec3 rotateZ(vec3 p, float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+  return vec3(c*p.x+s*p.y, -s*p.x+c*p.y, p.z);
+}
+
+</script>
+
+<script id="shaderFs" type="x-shader/x-vertex">
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+  vec2 p = fragCoord.xy/iResolution;
+
+  vec3 col = vec3(p.x,p.y,cos(iTime)*.5+.5);
+
+  //dithering
+  highp int i = int(mod(floor(gl_FragCoord.x),4.0)+mod(floor(gl_FragCoord.y),4.0)*4.0);
+  float d = (dither[i]+1.0)/256.0;
+
+  fragColor = vec4(col+d,1.0);
+}
+</script>
+
+<script>
+//camera
+let [Yaw,Pitch,XAcc,YAcc] = [45,35.264,.05,.05];
+let [YawV,PitchV,XOld,YOld] = [0,0,0,0];
+
+let start = true;
+let start2 = false;
+
+const el = document.body;
+el.addEventListener('touchstart', touchStart);
+el.addEventListener('touchmove',touchMove);
+el.addEventListener('mousedown', mouseStart);
+el.addEventListener('mousemove', mouseMove);
+el.addEventListener('mouseup', mouseEnd);
+function touchStart() {
+  var XOld = event.touches[0].clientX;
+  var YOld = event.touches[0].clientY;
+  start = true;
+}
+function touchMove() {
+  YawV = ((event.touches[0].clientX - XOld) * XAcc) + YawV/4;
+  PitchV = ((event.touches[0].clientY - YOld) * YAcc) + PitchV/4;
+  if (start == true) {
+    XOld = event.touches[0].clientX;
+    YOld = event.touches[0].clientY;
+    start = false;
+  }
+}
+function mouseStart() {
+  var XOld = event.clientX;
+  var YOld = event.clientY;
+  start2 = true;
+}
+function mouseMove() {
+  if (start2 == true) {
+    YawV = ((event.clientX - XOld) * XAcc) + YawV/4;
+    PitchV = ((event.clientY - YOld) * YAcc) + PitchV/4;
+  }
+  if (start2 == false) {
+    XOld = event.clientX;
+    YOld = event.clientY;
+  }
+}
+function mouseEnd() {
+  start2 = false;
+}
+</script>
+
+<script>
+//"use strict";
+
+// Get A WebGL context
+const canvas = document.querySelector(".canvas");
+const gl = canvas.getContext("webgl2");
+
+const url_string = window.location.href;
+const url = new URL(url_string);
+const shader = url.searchParams.get("shader");
+const res = url.searchParams.get("res");
+
+const resolution = 1024*(res||1/4);
+gl.canvas.width = resolution;
+gl.canvas.height = resolution;
+gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+const vs_src = document.getElementById("shaderVs").innerHTML;
+const core = document.getElementById("core").innerHTML;
+
+let mouseX = 0;
+let mouseY = 0;
+
+function setMousePosition(e) {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+  mouseY = rect.height - (e.clientY - rect.top) - 1;
+}
+
+canvas.addEventListener('mousemove', setMousePosition);
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+}, {passive: false});
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  setMousePosition(e.touches[0]);
+}, {passive: false});
+
+  if (shader != undefined) {
+    var fragment = decodeURIComponent(shader);
+  }
+  if (fragment == undefined) {
+    var fragment = document.getElementById("shaderFs").innerHTML;
+  }
+
+  const origin = `out vec4 outColor;\nuniform float iTime;\nuniform vec2 iMouse;\nuniform vec2 iResolution;\nuniform vec2 iCamera;`;
+  const main = `vec4 outCol;\nvoid main() {mainImage(outCol, gl_FragCoord.xy);\noutColor=rgb2index(outCol);}`;
+  const fs_src = core + origin + fragment + main;
+
+  // setup GLSL program
+  var vs = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vs, vs_src);
+  gl.compileShader(vs);
+
+  var fs = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(fs, fs_src);
+  gl.compileShader(fs);
+  var error = gl.getShaderInfoLog(fs).split(":");
+  var errorA = [error[2],error[4]];
+
+  var program = gl.createProgram();
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+
+  gl.detachShader(program, vs);
+  gl.detachShader(program, fs);
+
+  gl.useProgram(program);
+
+  // look up uniform locations
+  const resolutionLocation = gl.getUniformLocation(program,"iResolution");
+  const mouseLocation = gl.getUniformLocation(program,"iMouse");
+  const timeLocation = gl.getUniformLocation(program,"iTime");
+  const camLocation = gl.getUniformLocation(program,"iCamera");
+
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    let log=`fs : ${gl.getShaderInfoLog(fs)}\npg : ${gl.getProgramInfoLog(program)}\n`;
+    //console.log(log);
+    canvas.style.display = "none";
+    var nlog = gl.getShaderInfoLog(fs).split(":");
+    document.querySelector(".error").innerHTML = nlog[0]+" : "+nlog[1]+":"+(nlog[2]-113)+" "+nlog[3]+nlog[4];
+    gl.useProgram(null);
+    gl.deleteProgram(program);
+  }
+  //gl.deleteShader(vs);
+  //gl.deleteShader(fs);
+
+  function render(time) {
+    time*=.001;
+    t = time;
+    YawV = YawV*.9;
+    Yaw = Yaw+YawV;
+    PitchV = PitchV*.9;
+    Pitch = Pitch+PitchV;
+    gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
+    gl.uniform2f(mouseLocation, mouseX, mouseY);
+    gl.uniform1f(timeLocation, time);
+    gl.uniform2f(camLocation,Pitch,Yaw);
+    gl.drawArrays(gl.points,0,1);
+    img = gl.canvas.toDataURL();
+    requestAnimationFrame(render);
+  }
+  render();
+</script>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gallery</title>
+</head>
+
+<style>
+  @font-face {
+    font-family: 'font';
+    src: url(fancade.woff) format('woff');
+  }
+
+  * {
+    image-rendering: pixelated;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    font-family: "font";
+    color: #dcbd;
+  }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    /*align-itemsex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    justify-self: center;*/
+    background: #4E3731;
+    overflow: hidden;
+  }
+
+  #shaders {
+    width: 100%;
+    height: 70%;
+    overflow-y: auto;
+  }
+
+  #shaders::-webkit-scrollbar {
+    width: 25px;
+  }
+
+  #shaders::-webkit-scrollbar-track {
+    background: #3C2823;
+  }
+
+  #shaders::-webkit-scrollbar-thumb {
+    background: #6B4338;
+  }
+
+  .item {
+    width: 50%;
+    height: 20%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    background: #574038;
+    color: #fff;
+    transition: all .125s ease;
+    transform: scale(.95);
+  }
+
+  .item:active {
+    transform: scale(1.25);
+  }
+
+  #add {
+    background: #6B514B;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    border: 0;
+    transition: all .125s ease;
+    z-index: 3;
+  }
+
+  #edit {
+    background: #6B514B;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    border: 0;
+    transition: all .125s ease;
+    z-index: 1;
+    background-image: url(edit.png);
+    background-size: 200% 100%;
+    background-position: 100% 0;
+  }
+
+  #add:active , #edit:active {
+    transform: scale(1.25);
+  }
+
+  #addPage {
+    position: absolute;
+    width: 50%;
+    height: 20%;
+    padding: 5%;
+    background: #48302D;
+  }
+
+  #nameInput {
+    background: #5D3F39;
+    width: 80%;
+    height: 35%;
+    margin-left: 10%;
+    border: 0;
+    text-align: center;
+    display: inline;
+  }
+
+  #nameInput:focus {
+    outline: none;
+  }
+
+  #create {
+    background: #5D3F39;
+    margin-top: 10%;
+    width: 80%;
+    height: 45%;
+    border: 0;
+    margin-left: 10%;
+    transition: all .25s ease;
+    display: inline;
+  }
+
+  #create:active {
+    transform: scale(1.25);
+  }
+
+  @media (orientation: portrait) {
+    #add , #edit {
+      width: 12.5vw;
+      height: 12.5vw;
+      margin: 10vw;
+      border-radius: 1.5vw;
+    }
+
+    #addPage , #create , #nameInput {
+      border-radius: 1.5vw;
+    }
+  }
+
+  @media (orientation: landscape) {
+    #add , #edit {
+      width: 12.5vh;
+      height: 12.5vh;
+      margin: 10vh;
+      border-radius: 1.5vh;
+    }
+
+    #addPage , #create , #nameInput {
+      border-radius: 1.5vh;
+    }
+
+    #nameInput {
+      width: 47.5%;
+      height: 75%;
+      margin: 0;
+    }
+
+    #create {
+      width: 47.5%;
+      height: 75%;
+      margin: 0;
+    }
+  }
+</style>
+
+<body>
+  <br>
+  <center><h1>storage</h1></center>
+  <br>
+  <div id="addPageS" style="background:#05000030;z-index:2;transition:all .125s ease;transform:scaleY(0);position:absolute;top:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;">
+    <div id="addPage">
+      <input placeholder="name.." id="nameInput" type="text">
+      <button id="create">Create</button>
+    </div>
+  </div>
+  <div id="shaders"></div>
+  <button id="add">New</button>
+  <button id="edit"></button>
+</body>
+
+<script src="js/stringer.js"></script>
+
+<script>
+  let pageScale = 0;
+  add.onclick = function() {
+    pageScale = (pageScale+1)%2;
+    addPageS.style.transform = "scaleY("+pageScale+")";
+  }
+
+</script>
+
+<script>
+  const url_string = window.location.href;
+  const url = new URL(url_string);
+  const name = url.searchParams.get("n");
+
+  if (localStorage.getItem("shaders") == undefined) {
+    localStorage.setItem("shaders","Core");
+  }
+  let sha = localStorage.getItem("shaders").split(",");
+  if (name != undefined) {
+    addOrNot(sha,name);
+    localStorage.setItem("shaders",sha);
+  }
+  for (i in sha) {
+    document.getElementById("shaders").innerHTML += "<div class='item' onclick='"+"loadS("+i+")"+"'>"+sha[i]+"</div>";
+  }
+
+  create.onclick = function () {
+    location.replace(
+      "editor.html?name="+nameInput.value
+    );
+  }
+
+  let tedit = true;
+  let etype = 1;
+  edit.onclick = function() {
+    tedit = !tedit;
+    etype = (etype + 1) % 2;
+    edit.style.backgroundPosition = etype * 100 + "% 0";
+  }
+
+  function loadS(x) {
+    item = sha[x];
+    if (tedit == true) {
+      location.replace(
+        "editor.html?load="+item
+      );
+    }
+    else {
+      removeItem(sha,item);
+      localStorage.setItem("shaders",sha);
+      location.replace(
+        "editor.html?delete="+item
+      );
+    }
+  }
+
+</script>
+
+</html>
