@@ -1,7 +1,7 @@
 # Core-Alpha
 Simple GLSL IDE
 
-![ide](img/ide.png)
+![](img/ide.png)
 * Autocomplete
 * Debugging
 * Syntax highlighting & checking
@@ -9,3 +9,4 @@ Simple GLSL IDE
 * Simple GUI
 
 ## Editor
+<img src="img/editor.png" width="256" height="256">
