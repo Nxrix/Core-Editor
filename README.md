@@ -1,4 +1,4 @@
-# Core-Alpha
+# Core-Editor Alpha
 Simple GLSL IDE
 
 ![](img/ide.png)
